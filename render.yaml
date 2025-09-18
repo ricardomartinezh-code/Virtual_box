@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: tipificacion-bot
+    env: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: SA_JSON
+        sync: false
