@@ -5,14 +5,52 @@ Preparado para desplegarse desde **GitHub → Render** con autodeploy.
 
 ## Endpoints
 - `GET /` → health check.
-- `POST /run` → ejecuta una navegación y opcionalmente escribe en Google Sheets.
+- `POST /run` → ejecuta una navegación, una secuencia de pasos Playwright y opcionalmente escribe en Google Sheets.
   ```json
   {
     "url": "https://example.com",
     "spreadsheetId": "TU_SHEET_ID",
-    "range": "Sheet1!A1"
+    "range": "Sheet1!A1",
+    "steps": [
+      { "action": "waitForSelector", "selector": "#search" },
+      { "action": "type", "selector": "#search", "value": "playwright" },
+      { "action": "click", "selector": "button[type=submit]" },
+      { "action": "waitForTimeout", "timeout": 2000 }
+    ]
   }
   ```
+
+### Acciones soportadas
+
+Actualmente `/run` reconoce las siguientes acciones (todas ejecutadas en orden sobre la página actual):
+
+| Acción            | Campos obligatorios                | Descripción                                                                 |
+| ----------------- | ---------------------------------- | --------------------------------------------------------------------------- |
+| `click`           | `selector`                         | Ejecuta `page.click(selector)`                                              |
+| `type` / `fill`   | `selector`, `value` (string)       | Ejecuta `page.fill(selector, value)`                                        |
+| `waitForSelector` | `selector`, opcional `options`     | Ejecuta `page.waitForSelector(selector, options)`                           |
+| `waitForTimeout`  | `timeout` (ms, también acepta `value`) | Ejecuta `page.waitForTimeout(timeout)`                                   |
+
+Si alguno de los campos obligatorios falta o tiene un tipo incorrecto, la petición devolverá un error con el paso fallido.
+
+### Enseñar nuevas acciones
+
+Las acciones están centralizadas en `server.js` dentro del objeto `actionHandlers`. Para añadir una nueva:
+
+1. Define una clave con el nombre de la acción y una función async que reciba `{ page, step }`.
+2. Valida dentro de la función que el payload tenga los datos esperados y lanza un `Error` con un mensaje claro si algo falta.
+3. Usa la API de Playwright correspondiente (`page.*`).
+
+Ejemplo mínimo para soportar una captura de pantalla:
+
+```js
+actionHandlers.screenshot = async ({ page, step }) => {
+  const path = step.path || "screenshot.png";
+  await page.screenshot({ path });
+};
+```
+
+Una vez añadida la acción, puedes invocarla desde el payload `steps` como cualquier otra.
 
 ## Requisitos
 - Node 20+ (solo para correr local) o Docker.
